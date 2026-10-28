@@ -1,0 +1,92 @@
+#pragma once
+namespace souz {
+inline constexpr char PanelPage[] = R"SOUZWEB(<!doctype html>
+<html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Souz Content • Background Gen</title>
+<style>
+:root{color-scheme:dark;--bg:#14101c;--panel:#1d1729;--line:#352b48;--ink:#f3eefb;--mute:#a79bbd;--hot:#ff4f7b;--sun:#ffb340;--cool:#6c5cff;--font:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:var(--font);background:var(--bg);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+main{max-width:920px;margin:auto;padding:28px 22px 40px}
+header{display:flex;align-items:center;gap:14px}
+.mark{width:44px;height:44px;flex:none}
+.brand{font-size:22px;font-weight:700;letter-spacing:-.4px;line-height:1}
+.brand span{font-weight:300;color:var(--mute)}
+.plugin{margin-left:auto;font-size:14px;color:var(--mute);text-align:right}
+.stage{margin:34px 0 22px;border-radius:26px;padding:30px 28px 26px;background:var(--panel);border:1px solid var(--line);position:relative;overflow:hidden}
+.stage::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;background:linear-gradient(90deg,var(--hot),var(--sun) 55%,var(--cool))}
+.stage h1{font-size:15px;font-weight:600;margin:6px 0 0;color:var(--mute)}
+output{display:block;font-size:clamp(64px,17vw,120px);font-weight:200;letter-spacing:-.05em;line-height:1;margin:10px 0 4px;font-variant-numeric:tabular-nums}
+.sub{margin:0 0 26px;color:var(--mute);font-size:14px}
+.rail{position:relative;height:44px;margin:0 0 6px}
+.rail::before{content:"";position:absolute;left:0;right:0;top:19px;height:6px;border-radius:3px;background:#2a2139}
+.fill{position:absolute;left:0;top:19px;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--cool),var(--hot) 60%,var(--sun));width:35%}
+input[type=range]{position:absolute;inset:0;width:100%;height:44px;margin:0;background:none;-webkit-appearance:none;appearance:none;cursor:pointer;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:44px;background:none}
+input[type=range]::-moz-range-track{height:44px;background:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:7px;border-radius:50%;background:var(--ink);border:5px solid var(--hot);box-shadow:0 2px 10px #0008}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--ink);border:5px solid var(--hot)}
+input:disabled{cursor:default;opacity:.45}
+.ends{display:flex;justify-content:space-between;font-size:13px;color:var(--mute)}
+.actions{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
+button{font:inherit;font-weight:600;font-size:15px;min-height:46px;padding:0 22px;border-radius:23px;border:1px solid var(--line);background:#271f38;color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--hot)}
+button:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.status{margin-top:22px;font-size:14px;color:var(--mute);display:flex;align-items:center;gap:9px}
+.dot{width:10px;height:10px;border-radius:50%;background:#665c7a;flex:none}
+.status.on .dot{background:#4ee0a0}
+.status.off .dot{background:var(--hot)}
+.net{border-radius:22px;padding:22px 24px;border:1px dashed var(--line)}
+.net h2{margin:0 0 4px;font-size:16px}
+.net p{margin:6px 0;color:var(--mute);font-size:14px;line-height:1.55;max-width:62ch}
+#instance{color:var(--ink);font-weight:600}
+#links a{display:block;color:var(--sun);font-size:15px;overflow-wrap:anywhere;margin:12px 0}
+footer{margin-top:26px;color:#7d7194;font-size:13px}
+@media(max-width:560px){main{padding:20px 14px 32px}.stage{padding:26px 18px 22px;border-radius:22px}.plugin{display:none}}
+@media(prefers-reduced-motion:no-preference){.fill{transition:width .08s linear}}
+</style>
+<main>
+<header>
+<svg class="mark" viewBox="0 0 44 44" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4f7b"/><stop offset=".6" stop-color="#ffb340"/><stop offset="1" stop-color="#6c5cff"/></linearGradient></defs><rect x="2" y="2" width="40" height="40" rx="13" fill="url(#g)"/><path d="M29 14.5c-2.2-1.7-5-2.3-7.6-1.6-3 .8-4.2 3.6-2.6 5.5 1.3 1.6 3.6 2 5.4 2.7 2.2.8 3.2 2.6 2.2 4.4-1.3 2.3-4.8 2.9-8.1 1.6" fill="none" stroke="#14101c" stroke-width="3.6" stroke-linecap="round"/></svg>
+<div class="brand">Souz <span>Content</span></div>
+<div class="plugin">Background Gen</div>
+</header>
+<section class="stage">
+<h1><label for="speed">Velocidade</label></h1>
+<output id="value" for="speed">—</output>
+<p class="sub">0 pausa a animação · 1 equivale a 4×</p>
+<div class="rail"><div class="fill" id="fill"></div><input disabled id="speed" type="range" min="0" max="1" step="0.001" aria-label="Velocidade da animação"></div>
+<div class="ends"><span>Parado</span><span>4×</span></div>
+<div class="actions"><button disabled id="pause">Pausar</button><button disabled id="reset">Padrão</button></div>
+<div id="status" class="status" role="status"><i class="dot"></i><span id="statustext">Conectando…</span></div>
+</section>
+<aside class="net">
+<h2>Esta instância</h2>
+<p id="instance">—</p>
+<p>Para controlar pelo celular ou outro computador da mesma rede, abra um dos links abaixo.</p>
+<div id="links"></div>
+<p>O link inclui a chave de acesso desta instância. No Windows, permita o Resolume no firewall apenas na rede privada. Automação de Speed no Resolume pode sobrescrever o painel.</p>
+</aside>
+<footer>Souz Content · painel local, sem serviços externos</footer>
+</main>
+<script>
+const slider=document.querySelector('#speed'), value=document.querySelector('#value'), statusEl=document.querySelector('#status'), statusText=document.querySelector('#statustext'), fill=document.querySelector('#fill');
+const token=location.hash.slice(1), headers={'X-Souz-Token':token};
+let queued=null, sending=false, editing=false, online=false, version=0, infoLoaded=false, infoLoading=false;
+function show(v){value.textContent=(v*v*4).toFixed(2)+'×';fill.style.width=(v*100)+'%'}
+function connection(ok,text){online=ok;statusText.textContent=text;statusEl.className='status '+(ok?'on':'off');slider.disabled=!ok;document.querySelectorAll('button').forEach(b=>b.disabled=!ok)}
+async function api(path,options={}){const r=await fetch(path,{...options,headers:{...headers,...options.headers},cache:'no-store',signal:AbortSignal.timeout(2500)});if(!r.ok)throw Error(r.status===403?'Link inválido. Clique em Abrir painel novamente.':'Falha de comunicação');return r.json()}
+async function flush(){if(sending||queued===null)return;sending=true;const v=queued;queued=null;try{await api('/api/speed',{method:'POST',headers:{'Content-Type':'text/plain'},body:String(v)});connection(true,'Conectado · alteração enviada')}catch(e){queued=null;connection(false,e.message)}finally{sending=false;if(queued!==null)flush()}}
+function set(v){version++;queued=v;slider.value=v;show(v);flush()}
+slider.addEventListener('input',()=>set(Number(slider.value)));
+slider.addEventListener('pointerdown',()=>editing=true);
+window.addEventListener('pointerup',()=>editing=false);window.addEventListener('pointercancel',()=>editing=false);window.addEventListener('blur',()=>editing=false);
+document.querySelector('#pause').onclick=()=>set(0);document.querySelector('#reset').onclick=()=>set(.35);
+async function poll(){const before=version;try{const s=await api('/api/state');connection(true,'Conectado · sincronizado com o plugin');if(!infoLoaded)loadInfo();if(!editing&&!sending&&queued===null&&before===version){slider.value=s.speed;show(s.speed)}}catch(e){connection(false,e.message||'Instância indisponível')}finally{setTimeout(poll,100)}}
+async function loadInfo(){if(infoLoading)return;infoLoading=true;try{const info=await api('/api/info');document.querySelector('#instance').textContent='Porta '+info.port;for(const url of info.urls){const a=document.createElement('a');a.href=url+'/#'+token;a.textContent=url;document.querySelector('#links').append(a)}infoLoaded=true}catch(e){/* Retry instance links after the next successful state poll. */}finally{infoLoading=false}}
+loadInfo();poll();
+</script></html>
+)SOUZWEB";
+}
