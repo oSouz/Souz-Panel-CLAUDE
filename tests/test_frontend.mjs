@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const child=spawn(process.argv[2],[],{stdio:['pipe','pipe','inherit']});
 const replies=[]; let buffer='';
-child.stdout.on('data',d=>{buffer+=d;let n;while((n=buffer.indexOf('\n'))>=0){replies.push(buffer.slice(0,n));buffer=buffer.slice(n+1)}});
+child.stdout.on('data',d=>{buffer+=d;let n;while((n=buffer.indexOf('\n'))>=0){replies.push(buffer.slice(0,n).replace(/\r$/,''));buffer=buffer.slice(n+1)}});
 const reply=async()=>{for(let i=0;i<200;i++){if(replies.length)return replies.shift();await new Promise(r=>setTimeout(r,20))}throw Error('harness timeout')};
 const host=async cmd=>{child.stdin.write(cmd+'\n');return reply()};
 try {

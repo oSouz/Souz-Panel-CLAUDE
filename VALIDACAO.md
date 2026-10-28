@@ -38,3 +38,7 @@ Adicionado: banco de 34 parâmetros no servidor, esquema gerado (`src/PanelSchem
 Executado em Linux: servidor real com g++ -Wall -Wextra sem avisos; teste HTTP (esquema, índices, limites de cada tipo, lote atômico, origem web/host, duas instâncias, encerramento, regressão do reset do Windows) repetido três vezes; teste Node da interface (dois blocos, todos os tipos de controle, lote, sincronização host→painel, arraste protegido, restaurar padrão, desconexão), conferido com mutações propositais; teste em Chromium real com cliques, arraste, seletor de cor, recarregamento e viewport de 390 px.
 
 `BackgroundGen.cpp` foi verificado apenas quanto a tipos, contra um substituto mínimo do SDK, não contra o SDK da Resolume. Continua pendente no Windows/Resolume: compilar com MSVC, e confirmar que o Resolume aceita alterações de Engine, Shape, Palette, Reverse, Invert e cores vindas do plugin (`SetFloatParameter` na base do SDK + `FF_EVENT_FLAG_VALUE`). Se alguma opção não mudar de forma coerente, o ponto a investigar é o valor que o SDK espera para parâmetros de opção.
+
+## Correção do teste da interface no Windows
+
+No primeiro build com o painel completo, o teste Node falhou com `'ok\r' !== 'ok'`: o programa de teste termina linhas com `\r\n` no Windows e o leitor só removia `\n`. Corrigido no leitor (tests/test_frontend.mjs). Verificado em Linux simulando saída CRLF: o teste antigo falha da mesma forma e o novo passa. O painel e o servidor não foram alterados.
