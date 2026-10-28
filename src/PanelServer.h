@@ -1,4 +1,6 @@
 #pragma once
+#include "PanelSchema.h"
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <cstring>
@@ -9,11 +11,10 @@
 namespace souz {
 // One atomic word is both the authoritative value and its revision. A writer
 // cannot publish a revision paired with another writer's value. No locks on GL.
-class SpeedState {
+class ParamSlot {
     std::atomic<uint64_t> word{0};
 public:
     static_assert(ATOMIC_LLONG_LOCK_FREE == 2, "Requires lock-free 64-bit atomics");
-    SpeedState() { Set(0.35f, false); }
     void Set(float value, bool web) noexcept {
         uint32_t bits; std::memcpy(&bits, &value, sizeof bits);
         auto old = word.load();
@@ -31,9 +32,22 @@ public:
     static bool FromWeb(uint64_t snapshot) noexcept { return (snapshot >> 32) & 1; }
 };
 
+// Every plugin parameter that the panel can see, indexed like the host indexes them.
+class ParamBank {
+    std::array<ParamSlot, kPanelCount> slots;
+public:
+    static constexpr unsigned Count = kPanelCount;
+    ParamBank() { for (unsigned i = 0; i < Count; ++i) slots[i].Set(kPanelDefault[i], false); }
+    void Set(unsigned i, float value, bool web) noexcept { if (i < Count) slots[i].Set(value, web); }
+    uint64_t Snapshot(unsigned i) const noexcept { return i < Count ? slots[i].Snapshot() : 0; }
+    float Value(unsigned i) const noexcept { return i < Count ? ParamSlot::Value(slots[i].Snapshot()) : 0.0f; }
+    static float Decode(uint64_t snapshot) noexcept { return ParamSlot::Value(snapshot); }
+    static bool FromWeb(uint64_t snapshot) noexcept { return ParamSlot::FromWeb(snapshot); }
+};
+
 class PanelServer {
 public:
-    explicit PanelServer(SpeedState& speed);
+    explicit PanelServer(ParamBank& bank);
     ~PanelServer();
     PanelServer(const PanelServer&) = delete;
     PanelServer& operator=(const PanelServer&) = delete;
@@ -43,7 +57,7 @@ public:
     const std::string& Token() const noexcept { return token; }
 private:
     void Run() noexcept;
-    SpeedState& speed;
+    ParamBank& bank;
     std::string token;
     std::atomic<bool> stopping{false}, openRequested{false};
     std::atomic<unsigned short> port{0};

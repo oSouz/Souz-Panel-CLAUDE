@@ -1,6 +1,6 @@
 # Background Gen — Souz Content
 
-**Novo: painel web incorporado à DLL, botão Abrir painel e controle Speed pelo navegador.** Comece por [PAINEL_SOUZ.md](PAINEL_SOUZ.md) para compilar e fazer o primeiro teste. A descrição original do gerador está abaixo.
+**Novo: painel web incorporado à DLL, botão Abrir painel e todos os parâmetros pelo navegador, em dois blocos (gerador e cores).** Comece por [PAINEL_SOUZ.md](PAINEL_SOUZ.md) para compilar e fazer o primeiro teste. A descrição original do gerador está abaixo.
 
 Veja [VALIDACAO.md](VALIDACAO.md) para distinguir os testes executados aqui dos testes pendentes no Windows/Resolume.
 

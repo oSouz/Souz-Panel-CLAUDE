@@ -30,3 +30,11 @@ A interface do painel foi redesenhada com a identidade Souz Content (marca, pale
 ## Correção após o primeiro build no Windows
 
 O GitHub Actions compilou a DLL, mas o teste `panel_http` falhou com `ConnectionResetError 10054` ao enviar um corpo maior que o limite. Causa provável: o servidor fechava o socket com bytes da requisição ainda não lidos, e o Windows envia um reset que pode descartar a resposta 400. Correção: depois de enviar a resposta, o servidor encerra o lado de escrita e descarta os bytes restantes por até 500 ms antes de fechar. Adicionado teste de regressão com corpo enviado depois dos cabeçalhos. Passa no Linux; a confirmação no Windows depende de rodar o workflow de novo.
+
+## Todos os parâmetros no painel (revisão atual)
+
+Adicionado: banco de 34 parâmetros no servidor, esquema gerado (`src/PanelSchema.h`), API `GET /api/schema`, `GET /api/state` com todos os valores e `POST /api/set` em lote, e a nova interface em dois blocos com o layout enviado pelo Souz.
+
+Executado em Linux: servidor real com g++ -Wall -Wextra sem avisos; teste HTTP (esquema, índices, limites de cada tipo, lote atômico, origem web/host, duas instâncias, encerramento, regressão do reset do Windows) repetido três vezes; teste Node da interface (dois blocos, todos os tipos de controle, lote, sincronização host→painel, arraste protegido, restaurar padrão, desconexão), conferido com mutações propositais; teste em Chromium real com cliques, arraste, seletor de cor, recarregamento e viewport de 390 px.
+
+`BackgroundGen.cpp` foi verificado apenas quanto a tipos, contra um substituto mínimo do SDK, não contra o SDK da Resolume. Continua pendente no Windows/Resolume: compilar com MSVC, e confirmar que o Resolume aceita alterações de Engine, Shape, Palette, Reverse, Invert e cores vindas do plugin (`SetFloatParameter` na base do SDK + `FF_EVENT_FLAG_VALUE`). Se alguma opção não mudar de forma coerente, o ponto a investigar é o valor que o SDK espera para parâmetros de opção.

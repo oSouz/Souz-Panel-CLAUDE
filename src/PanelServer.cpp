@@ -98,9 +98,39 @@ std::string response(int code,const std::string& body,const char* type="applicat
         "\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nContent-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'\r\nContent-Length: "+std::to_string(body.size())+"\r\n\r\n"+body;
 }
 const std::string bad = "{\"error\":\"invalid request\"}";
+constexpr size_t kMaxBody = 256;
+bool parseFloat(const std::string& text,float& out){
+    if(text.empty()||text.size()>16||std::isspace(static_cast<unsigned char>(text[0]))) return false;
+    std::istringstream in(text);in.imbue(std::locale::classic());
+    if(!(in>>out)||!std::isfinite(out)) return false;
+    in>>std::ws; return in.eof();
+}
+// Body: "<index> <value>" lines separated by \n, at most kPanelMaxPairs. Everything is
+// validated before anything is written, so a bad request changes nothing.
+bool parseUpdates(const std::string& body,std::vector<std::pair<unsigned,float>>& out){
+    size_t pos=0;
+    while(pos<=body.size()){
+        auto nl=body.find('\n',pos); if(nl==std::string::npos) nl=body.size();
+        std::string line=body.substr(pos,nl-pos);
+        if(!line.empty()&&line.back()=='\r') line.pop_back();
+        pos=nl+1;
+        if(line.empty()&&nl==body.size()) break; // trailing newline
+        auto space=line.find(' ');
+        if(space==std::string::npos||space==0||space>2) return false;
+        const std::string index=line.substr(0,space);
+        if(!std::all_of(index.begin(),index.end(),[](unsigned char c){return std::isdigit(c);})) return false;
+        const unsigned i=unsigned(std::stoul(index)); float v;
+        if(i>=kPanelCount||!parseFloat(line.substr(space+1),v)||v<0||v>kPanelMax[i]) return false;
+        if(kPanelKind[i]!=0&&v!=std::floor(v)) return false;
+        if(out.size()>=kPanelMaxPairs) return false;
+        out.emplace_back(i,v);
+        if(nl==body.size()) break;
+    }
+    return !out.empty();
+}
 // Empty result means more request bytes are needed. No chunked, pipelined,
 // unbounded body, filesystem paths, CORS or arbitrary command execution.
-std::string route(const std::string& request,const std::string& token,SpeedState& speed,unsigned short port){
+std::string route(const std::string& request,const std::string& token,ParamBank& bank,unsigned short port){
     auto end=request.find("\r\n\r\n");
     if(end==std::string::npos) return request.size()>8192?response(400,bad):"";
     if(end>8192) return response(400,bad);
@@ -123,7 +153,7 @@ std::string route(const std::string& request,const std::string& token,SpeedState
     if(headers.count("content-length")){
         auto s=headers["content-length"];
         if(s.empty()||s.size()>3||!std::all_of(s.begin(),s.end(),[](unsigned char c){return std::isdigit(c);}))return response(400,bad);
-        length=std::stoul(s); if(length>64)return response(400,bad);
+        length=std::stoul(s); if(length>kMaxBody)return response(400,bad);
     }
     if(request.size()<end+4+length)return "";
     if(request.size()!=end+4+length)return response(400,bad);
@@ -135,15 +165,17 @@ std::string route(const std::string& request,const std::string& token,SpeedState
         for(const auto& ip:addresses()){if(comma)body+=",";comma=true;body+="\"http://"+ip+":"+std::to_string(port)+"\"";}
         return response(200,body+"]}");
     }
-    if(method=="POST"&&path=="/api/speed"){
+    if(method=="GET"&&path=="/api/schema") return response(200,kPanelSchema);
+    if(method=="POST"&&path=="/api/set"){
         if(headers["content-type"]!="text/plain")return response(400,bad);
-        std::istringstream input(request.substr(end+4,length));input.imbue(std::locale::classic());
-        float value; if(!(input>>value)||!std::isfinite(value)||value<0||value>1)return response(400,bad);
-        input>>std::ws; if(!input.eof())return response(400,bad);
-        speed.Set(value,true);
+        std::vector<std::pair<unsigned,float>> updates;
+        if(!parseUpdates(request.substr(end+4,length),updates)) return response(400,bad);
+        for(const auto& u:updates) bank.Set(u.first,u.second,true);
     } else if(!(method=="GET"&&path=="/api/state"))return response(404,bad);
     std::ostringstream body;body.imbue(std::locale::classic());
-    body<<"{\"speed\":"<<SpeedState::Value(speed.Snapshot())<<"}";
+    body<<"{\"v\":[";
+    for(unsigned i=0;i<kPanelCount;++i) body<<(i?",":"")<<bank.Value(i);
+    body<<"]}";
     return response(200,body.str());
 }
 struct Client {
@@ -155,7 +187,7 @@ struct Client {
     explicit Client(Socket s):socket(s){}
 };
 }
-PanelServer::PanelServer(SpeedState& s):speed(s),worker(&PanelServer::Run,this){}
+PanelServer::PanelServer(ParamBank& b):bank(b),worker(&PanelServer::Run,this){}
 PanelServer::~PanelServer(){stopping.store(true);if(worker.joinable())worker.join();}
 void PanelServer::Run() noexcept {
     try {
@@ -205,7 +237,7 @@ void PanelServer::Run() noexcept {
                 }
                 if(!done&&!c.draining&&c.output.empty()&&FD_ISSET(c.socket.s,&reads)){
                     char bytes[2048];int n=recv(c.socket.s,bytes,sizeof bytes,0);
-                    if(n>0){c.input.append(bytes,n);c.output=route(c.input,token,speed,port.load());}
+                    if(n>0){c.input.append(bytes,n);c.output=route(c.input,token,bank,port.load());}
                     else if(n==0||!wouldBlock())done=true;
                 }
                 if(!done&&!c.draining&&!c.output.empty()&&FD_ISSET(c.socket.s,&writes)){

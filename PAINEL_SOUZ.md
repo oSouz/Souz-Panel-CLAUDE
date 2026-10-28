@@ -1,6 +1,11 @@
 # Souz Content — primeiro teste do painel
 
-Esta versão modifica o BackgroundGen original. O nome `Background Gen`, o ID `ABGE` e todos os 34 parâmetros originais foram preservados. O botão `Abrir painel` foi acrescentado no final. Apenas **Speed** está disponível no navegador nesta etapa; os demais controles continuam no Resolume.
+Esta versão modifica o BackgroundGen original. O nome `Background Gen`, o ID `ABGE` e todos os 34 parâmetros originais foram preservados. O botão `Abrir painel` foi acrescentado no final. **Todos os parâmetros** estão no navegador, em dois blocos:
+
+- **Parâmetros do gerador:** Engine, Shape, Palette (com prévia das cores), Scale, Density, Smoothness, Blur, Speed, Warp, Seed, Rotation e Reverse.
+- **Parâmetros de cores:** Brightness, Contrast, Saturation, ColorShift, Pulse, Cor 1 a 4 (seletor de cor) e Invert.
+
+Cada bloco tem o botão **Restaurar padrão**. Cor 1 a 4 só valem com a paleta Custom; o painel as escurece nas outras paletas. A transparência (Alpha) das cores continua só no Resolume.
 
 ## Compilar e testar no seu computador
 
@@ -9,8 +14,8 @@ Esta versão modifica o BackgroundGen original. O nome `Background Gen`, o ID `A
 3. Baixe `BackgroundGen-win64`. Feche o Resolume e faça uma cópia de segurança da DLL antiga. Substitua-a pela nova `BackgroundGen.dll` na pasta de efeitos adicionais configurada no Resolume. Não deixe duas DLLs com o mesmo ID nessa pasta.
 4. Abra o Resolume, carregue `Sources → FFGL → Background Gen` em um clipe e deixe-o ativo.
 5. No final dos parâmetros, clique em **Abrir painel**. O navegador padrão deve abrir automaticamente.
-6. Mova **Velocidade**: 0 pausa o tempo da animação, 1 equivale a 4×. O botão **Padrão** restaura Speed a 0,35 (0,49×). O botão **Pausar** define Speed como 0.
-7. Mova Speed no Resolume e confira a atualização no navegador. Para este teste, desative automações de Speed.
+6. No painel, troque Engine, Shape e Palette, mexa nos sliders (Speed 0 pausa a animação, 1 equivale a 4×), ligue Reverse/Invert e escolha cores. O vídeo deve responder na hora.
+7. Mova parâmetros no Resolume e confira a atualização no navegador, e o contrário. Para este teste, desative automações. Teste principalmente **Engine, Shape, Palette, Reverse e Invert**: são opções e botões, e dependem de o Resolume aceitar a alteração vinda do plugin.
 8. No painel, copie o link correspondente ao IP da sua rede e abra-o no celular conectado à mesma rede. Use o link completo: ele contém a chave de acesso no trecho após `#`.
 
 Compilação local: Visual Studio 2022 com desenvolvimento C++, CMake, Git e Python 3. Execute `build_windows.bat`. O script gera as fontes, compila, roda os testes e copia a DLL para a pasta de efeitos usada pelo projeto original. Se o seu Resolume usa outra pasta, copie para a pasta das preferências.
@@ -34,9 +39,9 @@ Para sincronização dos valores com a interface do host, use Resolume 7.4 ou po
 
 O servidor usa sockets não bloqueantes e um loop com espera de até 10 ms, no máximo 24 clientes e prazo absoluto de 2 segundos por conexão. Limita cabeçalhos a 8 KiB e corpo a 64 bytes. Clientes lentos não bloqueiam outros clientes nem o render. A abertura do navegador e a enumeração de interfaces também ocorrem fora da thread de renderização.
 
-O parâmetro Speed usa um registro atômico de 64 bits contendo valor, revisão e origem. O navegador jamais acessa objetos do SDK ou OpenGL. Antes de o framework enviar os uniforms, o host aplica a revisão mais recente e emite `FF_EVENT_FLAG_VALUE` para valores recebidos da web. O getter do parâmetro reflete o valor atual para persistência/consulta pelo host. A ordem de chegada prevalece; automações do Resolume continuam podendo escrever o parâmetro.
+Cada um dos 34 parâmetros tem um registro atômico de 64 bits com valor, revisão e origem (web ou host). A lista de parâmetros do painel (blocos, nomes, opções, limites e padrões) é gerada por `tools/gen_shader.py` a partir da mesma tabela que cria os parâmetros do plugin, então painel, shader e Resolume não saem de sincronia. O navegador jamais acessa objetos do SDK ou OpenGL. Antes de o framework enviar os uniforms, o host aplica, pelo mesmo caminho que o Resolume usa, a revisão mais recente de cada parâmetro e emite `FF_EVENT_FLAG_VALUE` para os valores recebidos da web. O getter do parâmetro reflete o valor atual para persistência/consulta pelo host. A ordem de chegada prevalece; automações do Resolume continuam podendo escrever o parâmetro.
 
-A página consulta o estado a cada 100 ms após a resposta anterior, agrupa movimentos pendentes do slider e envia apenas uma alteração por vez. Durante o gesto, respostas antigas não reposicionam o controle. O vídeo mantém sua taxa de quadros: a comunicação não espera resposta do host. Não há streaming de prévia de vídeo nesta etapa.
+A página consulta o estado a cada 100 ms após a resposta anterior, agrupa as alterações pendentes (até 8 por requisição, aplicadas por inteiro ou nenhuma) e envia uma requisição por vez. Controle sendo arrastado, ou alterado há menos de meio segundo, não é reposicionado por respostas antigas. O vídeo mantém sua taxa de quadros: a comunicação não espera resposta do host. Não há streaming de prévia de vídeo nesta etapa.
 
 O SDK é mantido no commit original `5b6e07840277df9ec35a228b9eb067636316350f`. Documentação de eventos: https://github.com/resolume/ffgl (exemplo `source/plugins/Events`).
 
@@ -44,8 +49,9 @@ O SDK é mantido no commit original `5b6e07840277df9ec35a228b9eb067636316350f`. 
 
 - [ ] Build e testes do GitHub Actions verdes; DLL x64 com plugMain.
 - [ ] Instalar, carregar e abrir o navegador pelo botão.
-- [ ] Speed muda visual, slider do host e painel nas duas direções.
-- [ ] Salvar/reabrir composição conserva Speed, mas não dispara Abrir painel sozinho.
+- [ ] Cada controle do painel muda o visual, o slider do host e o painel, nas duas direções. Atenção a Engine, Shape, Palette, Reverse, Invert e às cores.
+- [ ] Botões Restaurar padrão de cada bloco.
+- [ ] Salvar/reabrir composição conserva os valores, mas não dispara Abrir painel sozinho.
 - [ ] Duas instâncias abrem portas diferentes e não alteram uma à outra.
 - [ ] Celular e computador controlam a mesma instância.
 - [ ] Remover uma instância interrompe apenas seu painel; a outra continua.

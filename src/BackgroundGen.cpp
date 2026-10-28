@@ -38,7 +38,8 @@ BackgroundGen::BackgroundGen()
     openIndex=static_cast<unsigned int>(params.size());
     AddParam(ffglqs::ParamEvent::Create("OpenPanel"));
     SetParamDisplayName(openIndex, "Abrir painel", false);
-    panelSpeed.Set(speedParam->GetValue(), false);
+    // The bank starts from the generated defaults (same table that created the parameters).
+    for(unsigned i=0;i<souz::ParamBank::Count;++i) applied[i]=bank.Snapshot(i);
     SetFragmentShader( BuildBackgroundShader() );
 }
 
@@ -49,7 +50,7 @@ FFResult BackgroundGen::Init()
     // SDK creates a prototype to enumerate parameters. Starting only in Init()
     // avoids a server for that prototype or for a failed GL initialization.
     if(!panel) {
-        try { panel = std::make_unique<souz::PanelServer>(panelSpeed); }
+        try { panel = std::make_unique<souz::PanelServer>(bank); }
         catch(const std::exception&) { FFGLLog::LogToHost("Souz Content: unable to start web panel"); }
     }
     return FF_SUCCESS; // A network failure must not break video output.
@@ -63,10 +64,12 @@ FFResult BackgroundGen::SetFloatParameter(unsigned int index, float value)
         if(value>0.5f && panel) panel->Open();
         return FF_SUCCESS;
     }
-    if(index==speedIndex) {
+    if(index<souz::ParamBank::Count) {
         if(!std::isfinite(value)) return FF_FAIL;
-        panelSpeed.Set(std::max(0.0f,std::min(1.0f,value)),false);
-        return FF_SUCCESS;
+        // Host writes keep the original code path, and are mirrored for the panel.
+        const FFResult result=ffglqs::Source::SetFloatParameter(index,value);
+        if(result==FF_SUCCESS) bank.Set(index,value,false);
+        return result;
     }
     return ffglqs::Source::SetFloatParameter(index,value);
 }
@@ -74,7 +77,8 @@ FFResult BackgroundGen::SetFloatParameter(unsigned int index, float value)
 float BackgroundGen::GetFloatParameter(unsigned int index)
 {
     if(index==openIndex) return 0.0f; // Momentary action, never stored as pressed.
-    if(index==speedIndex) return souz::SpeedState::Value(panelSpeed.Snapshot());
+    // Options keep the SDK's own getter; every other value reflects web edits at once.
+    if(index<souz::ParamBank::Count && souz::kPanelKind[index]!=1) return bank.Value(index);
     return ffglqs::Source::GetFloatParameter(index);
 }
 
@@ -88,20 +92,23 @@ char* BackgroundGen::GetParameterDisplay(unsigned int index)
     return ffglqs::Source::GetParameterDisplay(index);
 }
 
-void BackgroundGen::ApplyPanelSpeed()
+void BackgroundGen::ApplyPanelParams()
 {
-    const auto snapshot=panelSpeed.Snapshot();
-    if(snapshot==appliedSpeed) return;
-    speedParam->SetValue(souz::SpeedState::Value(snapshot));
-    appliedSpeed=snapshot;
-    // Notify Resolume so its slider/persistence see an externally edited value.
-    // No SDK object is touched by the network worker.
-    if(souz::SpeedState::FromWeb(snapshot)) RaiseParamEvent(speedIndex,FF_EVENT_FLAG_VALUE);
+    for(unsigned i=0;i<souz::ParamBank::Count;++i) {
+        const auto snapshot=bank.Snapshot(i);
+        if(snapshot==applied[i]) continue;
+        applied[i]=snapshot;
+        // Values written by the host were already applied in SetFloatParameter.
+        if(!souz::ParamBank::FromWeb(snapshot)) continue;
+        ffglqs::Source::SetFloatParameter(i,souz::ParamBank::Decode(snapshot));
+        // Tell Resolume its slider/persistence changed. No SDK object is touched by the worker.
+        RaiseParamEvent(i,FF_EVENT_FLAG_VALUE);
+    }
 }
 
 FFResult BackgroundGen::ProcessOpenGL(ProcessOpenGLStruct* input)
 {
-    ApplyPanelSpeed();
+    ApplyPanelParams();
     return ffglqs::Source::ProcessOpenGL(input);
 }
 

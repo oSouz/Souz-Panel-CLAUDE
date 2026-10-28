@@ -7,11 +7,13 @@
 using namespace souz;
 void require(bool v){if(!v)throw std::runtime_error("state/lifecycle test failed");}
 int main(){
-    SpeedState a,b;
-    require(std::abs(SpeedState::Value(a.Snapshot())-.35f)<.0001f);
-    a.Set(.7f,true);require(SpeedState::FromWeb(a.Snapshot()));
-    a.Set(.2f,false);require(!SpeedState::FromWeb(a.Snapshot()));
-    a.Set(.35f,false);
+    ParamBank a,b;
+    // Defaults come from the generated table; 34 slots follow the host's indices.
+    require(ParamBank::Count==34);
+    require(std::abs(a.Value(7u)-.35f)<.0001f && a.Value(2u)==1.0f && a.Value(18u)>.61f);
+    a.Set(7,.7f,true);require(ParamBank::FromWeb(a.Snapshot(7)));
+    a.Set(7,.2f,false);require(!ParamBank::FromWeb(a.Snapshot(7)));
+    a.Set(7,.35f,false);
     auto one=std::make_unique<PanelServer>(a);
     auto two=std::make_unique<PanelServer>(b);
     for(int i=0;i<500&&(!one->Port()||!two->Port());++i)std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -19,7 +21,9 @@ int main(){
     std::cout<<one->Port()<<" "<<one->Token()<<" "<<two->Port()<<" "<<two->Token()<<std::endl;
     std::string command;
     while(std::cin>>command){
-        if(command=="host"){float value;std::cin>>value;a.Set(value,false);std::cout<<"ok"<<std::endl;}
+        if(command=="host"){unsigned i;float value;std::cin>>i>>value;a.Set(i,value,false);std::cout<<"ok"<<std::endl;}
+        // Reports the last value/origin the "host" side would see for a slot.
+        if(command=="peek"){unsigned i;std::cin>>i;auto s=a.Snapshot(i);std::cout<<ParamBank::Decode(s)<<" "<<ParamBank::FromWeb(s)<<std::endl;}
         if(command=="stop1"){one.reset();std::cout<<"stopped"<<std::endl;}
         if(command=="quit")break;
     }

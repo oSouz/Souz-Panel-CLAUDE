@@ -39,6 +39,7 @@ add_library(BackgroundGen SHARED
     src/PanelServer.cpp
     src/PanelServer.h
     src/PanelPage.h
+    src/PanelSchema.h
     src/BackgroundGen.cpp
     src/BackgroundGen.h
     src/ShaderSource.h
