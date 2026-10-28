@@ -26,3 +26,7 @@ node tests/test_frontend.mjs ./panel_harness
 ## Revisão visual
 
 A interface do painel foi redesenhada com a identidade Souz Content (marca, paleta magenta/âmbar/violeta, controle grande, layout para celular). A lógica de comunicação e os IDs dos elementos não mudaram; os testes HTTP e Node passam. Renderização conferida em Chromium headless (desktop e 390 px). Continua pendente: compilar a DLL no Windows e testar no Resolume.
+
+## Correção após o primeiro build no Windows
+
+O GitHub Actions compilou a DLL, mas o teste `panel_http` falhou com `ConnectionResetError 10054` ao enviar um corpo maior que o limite. Causa provável: o servidor fechava o socket com bytes da requisição ainda não lidos, e o Windows envia um reset que pode descartar a resposta 400. Correção: depois de enviar a resposta, o servidor encerra o lado de escrita e descarta os bytes restantes por até 500 ms antes de fechar. Adicionado teste de regressão com corpo enviado depois dos cabeçalhos. Passa no Linux; a confirmação no Windows depende de rodar o workflow de novo.

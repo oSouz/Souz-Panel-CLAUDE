@@ -45,6 +45,18 @@ try:
     s.sendall(f'POST /api/speed HTTP/1.1\r\nHost: 127.0.0.1:{port1}\r\nX-Souz-Token: {token1}\r\nContent-Type: text/plain\r\nContent-Length: 3\r\n\r\n0'.encode())
     time.sleep(.03); assert state() == .5
     s.sendall(b'.8'); assert b'200 OK' in s.recv(4096);s.close();assert abs(state()-.8)<1e-5
+    # Oversized body announced in headers, body sent late: the 400 must survive the close
+    # (Windows resets the connection if unread bytes remain when the server closes).
+    for _ in range(20):
+        s=socket.create_connection(('127.0.0.1',port1));s.settimeout(3)
+        s.sendall(f'POST /api/speed HTTP/1.1\r\nHost: 127.0.0.1:{port1}\r\nX-Souz-Token: {token1}\r\nContent-Type: text/plain\r\nContent-Length: 65\r\n\r\n'.encode())
+        time.sleep(.05); s.sendall(b'1'*65)
+        data=b''
+        while True:
+            chunk=s.recv(4096)
+            if not chunk: break
+            data+=chunk
+        assert b'400 Bad Request' in data; s.close()
     # Idle socket gets evicted after its absolute deadline.
     time.sleep(2.1);slow.settimeout(1);assert slow.recv(1)==b'';slow.close()
     hanging=socket.create_connection(('127.0.0.1',port1));hanging.sendall(b'GET /')

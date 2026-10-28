@@ -150,6 +150,7 @@ struct Client {
     Handle socket;
     std::string input,output;
     size_t sent=0;
+    bool draining=false; // response fully sent, write side shut down, discarding leftovers
     std::chrono::steady_clock::time_point deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
     explicit Client(Socket s):socket(s){}
 };
@@ -190,25 +191,42 @@ void PanelServer::Run() noexcept {
             }
             fd_set reads,writes;FD_ZERO(&reads);FD_ZERO(&writes);FD_SET(listener.s,&reads);
             Socket highest=listener.s;
-            for(auto& c:clients){FD_SET(c->socket.s,c->output.empty()?&reads:&writes);highest=std::max(highest,c->socket.s);}
+            for(auto& c:clients){FD_SET(c->socket.s,(c->output.empty()||c->draining)?&reads:&writes);highest=std::max(highest,c->socket.s);}
             timeval wait{0,10000};
             if(select(int(highest+1),&reads,&writes,nullptr,&wait)<0){if(wouldBlock())continue;throw std::runtime_error("select");}
             // Process existing clients before accepting: a new socket isn't in these sets.
             for(auto it=clients.begin();it!=clients.end();){
                 auto& c=**it;bool done=std::chrono::steady_clock::now()>c.deadline;
-                if(!done&&c.output.empty()&&FD_ISSET(c.socket.s,&reads)){
+                if(!done&&c.draining&&FD_ISSET(c.socket.s,&reads)){
+                    // Graceful close: swallow unread request bytes so the OS does not
+                    // answer with a TCP reset that could erase our response (Windows).
+                    char junk[2048];int n=recv(c.socket.s,junk,sizeof junk,0);
+                    if(n==0||(n<0&&!wouldBlock()))done=true;
+                }
+                if(!done&&!c.draining&&c.output.empty()&&FD_ISSET(c.socket.s,&reads)){
                     char bytes[2048];int n=recv(c.socket.s,bytes,sizeof bytes,0);
                     if(n>0){c.input.append(bytes,n);c.output=route(c.input,token,speed,port.load());}
                     else if(n==0||!wouldBlock())done=true;
                 }
-                if(!done&&!c.output.empty()&&FD_ISSET(c.socket.s,&writes)){
+                if(!done&&!c.draining&&!c.output.empty()&&FD_ISSET(c.socket.s,&writes)){
 #ifdef _WIN32
                     constexpr int flags=0;
 #else
                     constexpr int flags=MSG_NOSIGNAL;
 #endif
                     int n=send(c.socket.s,c.output.data()+c.sent,int(c.output.size()-c.sent),flags);
-                    if(n>0){c.sent+=size_t(n);done=c.sent==c.output.size();}else if(n==0||!wouldBlock())done=true;
+                    if(n>0){
+                        c.sent+=size_t(n);
+                        if(c.sent==c.output.size()){
+#ifdef _WIN32
+                            shutdown(c.socket.s,SD_SEND);
+#else
+                            shutdown(c.socket.s,SHUT_WR);
+#endif
+                            c.draining=true;
+                            c.deadline=std::min(c.deadline,std::chrono::steady_clock::now()+std::chrono::milliseconds(500));
+                        }
+                    }else if(n==0||!wouldBlock())done=true;
                 }
                 if(done)it=clients.erase(it);else ++it;
             }
